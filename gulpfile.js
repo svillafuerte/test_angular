@@ -60,6 +60,7 @@ gulp.task('default',
   ['lint', 'connect']
 );
 // build task
-gulp.task('build',
-  ['lint', 'minify-css', 'minify-js', 'copy-html-files', 'copy-bower-components', 'connectDist']
+gulp.task('build', 
+  ['lint', 'minify-css', 'minify-js', 'copy-html-files', 'copy-bower-components']
+  // ['lint', 'minify-css', 'minify-js', 'copy-html-files', 'copy-bower-components', 'connectDist']
 );
