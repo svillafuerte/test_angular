@@ -1,0 +1,12 @@
+#assumes the gulpfile is in root of your cap install
+
+namespace :deploy do
+    desc 'Run gulp to compile the static site'
+    task :gulp_build_local do
+    #run_locally doesn't play nice with the 'on' directive (it's 'on' localhost)
+      run_locally do
+        #execute "gulp build"
+        execute :gulp, :clean
+      end
+    end  
+end 
