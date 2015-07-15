@@ -1,9 +1,18 @@
 # config valid only for current version of Capistrano
-lock '3.4.0'
+#lock '3.4.0'
 
+default_run_options[:pty] = true
+
+set :stages, Dir['config/deploy/*.rb'].map { |f| File.basename(f, '.rb') }
+set :default_stage, "development"
 set :application, 'test_angular'
-set :repo_url, 'git@github.com:svillafuerte/test_angular.git'
+set :repository, 'git@github.com:svillafuerte/test_angular.git'
 set :branch, :master
+set :user, 'deploy'
+set :group, 'deploy'
+set :ssh_options, { forward_agent: true }
+set :scm, "git"
+set :use_sudo, false
 
 set :linked_dirs, %w{node_modules app/bower_components}
 
@@ -16,7 +25,12 @@ set :deploy_to, "/var/www/#{fetch(:application)}"
 # set :theme_path, Pathname.new('web/app/themes/mytheme')
 # #set :local_app_path, Pathname.new('/Users/satcha/Projects/test_angular')
 set :local_app_path, Pathname.new(File.dirname(__FILE__)).join('../')
+set :local_dist_path, fetch(:local_app_path).join('dist')
 # set :local_theme_path, fetch(:local_app_path).join(fetch(:theme_path))
+
+after "deploy:update_code", "deploy:copy_assets"
+before "deploy:copy_assets", "deploy:compile_assets"
+before "deploy:finalize_update", "deploy:symlink"
 
 # namespace :deploy do
 #   #custom tasks to build via gulp
@@ -33,31 +47,61 @@ set :local_app_path, Pathname.new(File.dirname(__FILE__)).join('../')
 # end
 
 namespace :deploy do
+
   desc 'Run gulp to compile the static site'
-  task :compile_assets do
-  #run_locally doesn't play nice with the 'on' directive (it's 'on' localhost)
-    run_locally do
-      execute :gulp, :build
-    end
+  task :compile_assets, roles: :web do
+    run_locally("gulp build")
   end
 
+  desc 'Uploads a dist/ directory to the shared directory on the server'
   task :copy_assets do
-    #invoke 'deploy:compile_assets' 
+    run_locally("tar -jcf dist.tar.bz2 dist")
+    top.upload("dist.tar.bz2", "#{shared_path}", via: :scp)
+    run("cd #{shared_path} && tar -jxf dist.tar.bz2 && rm dist.tar.bz2")
+    run_locally("gulp clean")
+    run_locally("rm dist.tar.bz2")
 
-    on roles(:web) do
-      upload! fetch(:local_app_path).join('dist').to_s, release_path, recursive: true
-    end
+    # on roles(:web) do
+    #   #upload! fetch(:local_app_path).join('dist').to_s, release_path, recursive: true
+    #   #upload("dist")
+    #   #run_locally "cd #{local_app_path}/dist && tar -jcf dist.tar.bz2 dist"
+    #   #top.upload("dist/dist.tar.bz2", "#{shared_path}", via: :scp)
+    #   #run("cd #{shared_path} && tar -jxf dist.tar.bz2 && rm dist.tar.bz2")
+    #   upload(fetch(:local_app_path).join('dist.tar.bz2').to_s, shared_path)
+    #   #top.upload("dist.tar.bz2", "#{shared_path}", via: :scp)
+    #   #execute "cd #{shared_path} && tar -jxf dist.tar.bz2 && rm dist.tar.bz2"
+    # end
+  end
+
+  task :symlink, roles: :web do
+    run("rm -rf #{latest_release}/dist &&
+         mkdir -p #{latest_release}/dist") #&&
+         # mkdir -p #{shared_path}/dist &&
+         # ln -s #{shared_path}/dist #{latest_release}/dist")
+      # run("rm -rf #{latest_release}/public/swagger &&
+      #      mkdir -p #{latest_release}/public &&
+      #      mkdir -p #{shared_path}/swagger &&
+      #      ln -s #{shared_path}/swagger #{latest_release}/public/swagger")
   end
 
   desc 'Restart application'
-  task :restart do
-    on roles(:app), in: :sequence, wait: 5 do
-      #nothing here, because there's no app server for this static site.
-    end
+  task :restart, roles: :app, in: :sequence, wait: 5 do
+    #nothing here, because there's no app server for this static site.
   end
 
+  # def upload(directory)
+  #   info "****EN UPLOAD"
+  #   # Uploads a subdirectory of public/ to the shared directory on the server
+  #   run_locally("cd dist && tar -jcf #{directory}.tar.bz2 #{directory}")
+  #   top.upload("dist/#{directory}.tar.bz2", "#{shared_path}", via: :scp)
+  #   run("cd #{shared_path} && tar -jxf #{directory}.tar.bz2 && rm #{directory}.tar.bz2")
+  #   #run_locally("rm -rf dist/#{directory}/")
+  #   #run_locally("rm dist/#{directory}.tar.bz2")
+  # end
+
   # before :deploy, 'deploy:gulp_build'
-  before "deploy:updated", "deploy:copy_assets"
+  #before "deploy:updated", "deploy:copy_assets"
+  #before "deploy:publishing", "deploy:symlink"
 end 
 
 

@@ -1,8 +1,12 @@
 # Load DSL and set up stages
-require 'capistrano/setup'
+#require 'capistrano/setup'
 
 # Include default deployment tasks
-require 'capistrano/deploy'
+#require 'capistrano/deploy'
+
+load 'deploy' if respond_to?(:namespace)
+
+load 'config/deploy' # remove this line to skip loading any of the default tasks
 
 # Include tasks from other gems included in your Gemfile
 #
@@ -24,6 +28,6 @@ require 'capistrano/deploy'
 # require 'capistrano/passenger'
 
 # Load custom tasks from `lib/capistrano/tasks` if you have any defined
-Dir.glob('lib/capistrano/tasks/*.rake').each { |r| import r }
-Dir.glob('lib/capistrano/tasks/*.cap').each { |r| import r }
+Dir['lib/capistrano/tasks/*.rake'].each { |r| load(r) }
+Dir['lib/capistrano/tasks/*.cap'].each { |r| load(r) }
 
