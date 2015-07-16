@@ -46,10 +46,6 @@ namespace :deploy do
     task :symlink, roles: :web do
       run("rm -rf #{latest_release}/dist &&
            ln -s #{shared_path}/dist #{latest_release}/dist")
-        # run("rm -rf #{latest_release}/public/swagger &&
-        #      mkdir -p #{latest_release}/public &&
-        #      mkdir -p #{shared_path}/swagger &&
-        #      ln -s #{shared_path}/swagger #{latest_release}/public/swagger")
     end
   end
 
