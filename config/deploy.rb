@@ -19,9 +19,9 @@ set :deploy_to, "/var/www/#{fetch(:application)}"
 set :local_app_path, Pathname.new(File.dirname(__FILE__)).join('../')
 set :local_dist_path, fetch(:local_app_path).join('dist')
 
-after "deploy:update_code", "deploy:copy_assets"
-before "deploy:copy_assets", "deploy:compile_assets"
-before "deploy:finalize_update", "deploy:symlink"
+after "deploy:update_code", "deploy:copy_assets:precompile"
+before "deploy:copy_assets:precompile", "deploy:compile_assets"
+after "deploy:copy_assets:precompile", "deploy:copy_assets:symlink"
 
 namespace :deploy do
 
@@ -30,24 +30,27 @@ namespace :deploy do
     run_locally("gulp build")
   end
 
-  desc 'Uploads a dist/ directory to the shared directory on the server'
-  task :copy_assets do
-    run_locally("tar -jcf dist.tar.bz2 dist")
-    top.upload("dist.tar.bz2", "#{shared_path}", via: :scp)
-    run("cd #{shared_path} && tar -jxf dist.tar.bz2 && rm dist.tar.bz2")
-    run_locally("gulp clean")
-    run_locally("rm dist.tar.bz2")
-  end
+  namespace :copy_assets do
 
-  task :symlink, roles: :web do
-    run("rm -rf #{latest_release}/dist &&
-         mkdir -p #{latest_release}/dist") #&&
-         # mkdir -p #{shared_path}/dist &&
-         # ln -s #{shared_path}/dist #{latest_release}/dist")
-      # run("rm -rf #{latest_release}/public/swagger &&
-      #      mkdir -p #{latest_release}/public &&
-      #      mkdir -p #{shared_path}/swagger &&
-      #      ln -s #{shared_path}/swagger #{latest_release}/public/swagger")
+    desc 'Uploads a dist/ directory to the shared directory on the server'
+    task :precompile do
+      run_locally("tar -jcf dist.tar.bz2 dist")
+      run("cd #{shared_path} && rm -rf dist")
+      top.upload("dist.tar.bz2", "#{shared_path}", via: :scp)
+      run("cd #{shared_path} && tar -jxf dist.tar.bz2 && rm dist.tar.bz2")
+      run_locally("gulp clean")
+      run_locally("rm dist.tar.bz2")
+    end
+
+    desc 'Symlink dist/ directory'
+    task :symlink, roles: :web do
+      run("rm -rf #{latest_release}/dist &&
+           ln -s #{shared_path}/dist #{latest_release}/dist")
+        # run("rm -rf #{latest_release}/public/swagger &&
+        #      mkdir -p #{latest_release}/public &&
+        #      mkdir -p #{shared_path}/swagger &&
+        #      ln -s #{shared_path}/swagger #{latest_release}/public/swagger")
+    end
   end
 
   desc 'Restart application'
